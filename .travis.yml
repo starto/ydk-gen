@@ -16,7 +16,7 @@ before_install:
 script:
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./test/dependencies_osx.sh     ; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./test/dependencies_linux.sh ; fi
-    - sudo ./test/tests.sh
+    - sudo ./test/tests.sh -o $TRAVIS_OS_NAME
 
 after_success:
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then bash <(curl -s https://codecov.io/bash) ; fi  # Uploading python report to CodeCov 

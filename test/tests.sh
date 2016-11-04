@@ -334,6 +334,19 @@ function teardown_env {
     cd $YDKGEN_HOME && rm -rf gen_env test_env
 }
 
+function py_tests_backwards_compatibility {
+    print_msg "Running backwards compatibility tests"
+    for GEN_ENV in "python2" "python3"; do
+        for TEST_ENV in "python2" "python3"; do
+            init_env $GEN_ENV $TEST_ENV
+            py_sanity_ydktest
+            py_sanity_deviation
+            py_sanity_augmentation
+            teardown_env
+        done
+    done
+}
+
 function py_tests {
     GEN_ENV="python3"
     TEST_ENV="python3"
@@ -416,11 +429,35 @@ function test_gen_tests {
 
 ########################## EXECUTION STARTS HERE #############################
 
+OS=""
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
 
-py_tests
-init_rest_server
+while [[ $# -gt 1 ]]
+do
+key="$1"
+
+case $key in
+    -o|--os)
+        OS="$2"
+        shift # past argument
+        ;;
+    *)
+        echo "Illegal option: $1"
+        exit 1
+        ;;
+esac
+shift # past argument or value
+done
+
+print_msg "Got os: $OS"
+
+if [ "$OS" == "linux" ]; then
+  py_tests_backwards_compatibility
+else
+  py_tests
+fi
+
 cpp_tests
 test_gen_tests
 cd $YDKGEN_HOME
