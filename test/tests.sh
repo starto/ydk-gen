@@ -110,6 +110,19 @@ function init_tcp_server {
     fi
 }
 
+function init_gnmi_server {
+    print_msg "starting gnmi server"
+    mkdir -p test/gnmi_server/build && cd test/gnmi_server/build
+    cmake .. && make
+    ./gnmi_server &
+    local status=$?
+    if [ $status -ne 0 ]; then
+        print_msg "Could not start gnmi server"
+        exit $status
+    fi
+    cd -
+}
+
 function init_go_env {
     print_msg "init_go_env"
 
@@ -552,7 +565,8 @@ export YDKGEN_HOME="`pwd`"
 
 init_rest_server
 init_tcp_server
-init_go_env
+==== BASE ====
+==== BASE ====
 
 cpp_tests
 py_tests
