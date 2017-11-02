@@ -54,7 +54,7 @@ The output of ydk-gen is either a core package, that defines services and provid
 
 
 # Backward compatibility
- Please see [this page](http://ydk.cisco.com/py/docs/backward_compatibility.html) for details on some backward incompatible changes introduced as part of the 0.6.0 release
+ Please see [this page](http://ydk.cisco.com/py/docs/backward_compatibility.html) for details on some backward incompatible changes introduced as part of the 0.6.2 release
 
 
 # System requirements
@@ -66,8 +66,8 @@ Ubuntu (Debian-based):
 **Install prebuilt libydk binary:**
 ```
    $ sudo apt-get install gdebi-core python3-dev python-dev libtool-bin
-   $ wget https://devhub.cisco.com/artifactory/debian-ydk/0.6.0/libydk_0.6.0-1_amd64.deb
-   $ sudo gdebi libydk_0.6.0-1_amd64.deb
+   $ wget https://devhub.cisco.com/artifactory/debian-ydk/0.6.2/libydk_0.6.2-1_amd64.deb
+   $ sudo gdebi libydk_0.6.2-1_amd64.deb
 ```
 **To build from source:**
 ```
@@ -78,7 +78,7 @@ Centos (Fedora-based):
 **Install prebuilt libydk binary:**
 ```
    $ sudo yum install epel-release libssh-devel gcc-c++
-   $ sudo yum install https://devhub.cisco.com/artifactory/rpm-ydk/0.6.0/libydk-0.6.0-1.x86_64.rpm
+   $ sudo yum install https://devhub.cisco.com/artifactory/rpm-ydk/0.6.2/libydk-0.6.2-1.x86_64.rpm
    $ sudo ln –fs /usr/bin/cmake3 /usr/bin/cmake && export PATH=/usr/bin:$PATH
 ```
 **To build from source:**
@@ -89,24 +89,27 @@ $ sudo ln –fs $(which cmake3) /usr/bin/cmake && export PATH=/usr/bin:$PATH
 ```
 
 ## macOS
-It is recommended to install [homebrew](http://brew.sh) and Xcode command line tools on your system before installing YDK-Py/YDK-Cpp:
+It is recommended to install [homebrew](http://brew.sh) and Xcode command line tools on your system before installing YDK-Py/YDK-Cpp.
+
+You can download the latest python package from [here](https://www.python.org/downloads/). Please do not use the homebrew version of python as it causes issues with installing ydk packages. Please execute `brew rm python python3` to remove any homebrew python packages.
+
 **Install prebuilt libydk binary:**
 ```
    $ xcode-select --install
    $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
    $ brew install python pkg-config libssh xml2 curl pcre cmake
-   $ curl -O https://devhub.cisco.com/artifactory/osx-ydk/0.6.0/libydk-0.6.0-Darwin.pkg
-   $ sudo installer -pkg libydk-0.6.0-Darwin.pkg -target /
+   $ curl -O https://devhub.cisco.com/artifactory/osx-ydk/0.6.2/libydk-0.6.2-Darwin.pkg
+   $ sudo installer -pkg libydk-0.6.2-Darwin.pkg -target /
 ```
 **To build from source:**
 ```
    $ xcode-select --install
    $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-   $ brew install python pkg-config libssh xml2 curl pcre cmake
+   $ brew install pkg-config libssh xml2 curl pcre cmake
 ```
 
 ## Windows
-Currently, ``YDK-Py`` and ``YDK-Cpp`` from release ``0.6.0`` onwards is not supported on Windows.
+Currently, ``YDK-Py`` and ``YDK-Cpp`` from release ``0.6.2`` onwards is not supported on Windows.
 
 # Installation
 ## Setting up your environment
@@ -218,6 +221,11 @@ Only directory examples are shown below.
 
 ## Second step: Generate & install the core
 
+On executing `pip install ydk-cisco-ios-xr`, you will be able to install the latest released PyPi version of all the `ydk` packages.
+
+**Note:** 
+There usually would have been changes on the master branch since the last [released version](https://github.com/CiscoDevNet/ydk-py/releases). To install the latest code at your own risk, you need to follow the below steps in the exact order.
+
 First, generate the core and install it:
 
 For C++ or Python, the below step is required:
@@ -237,7 +245,7 @@ Then, generate your bundle using a bundle profile and install it:
 
 For python:
 ```
-$ ./generate.py --python --bundle profiles/<name-of-profile>.json
+$ ./generate.py --python --bundle profiles/bundles/<name-of-profile>.json
 $ pip install gen-api/python/<name-of-bundle>-bundle/dist/ydk*.tar.gz
 ```
 
@@ -252,7 +260,7 @@ ydk-models-<name-of-bundle> (0.5.1)
 
 For C++:
 ```
-$ ./generate.py --cpp --bundle profiles/<name-of-profile>.json
+$ ./generate.py --cpp --bundle profiles/bundles/<name-of-profile>.json
 $ cd gen-api/cpp/<name-of-bundle>-bundle/build && make && make install
 ```
 
@@ -372,4 +380,4 @@ Join the [YDK community](https://communities.cisco.com/community/developer/ydk) 
 
 Release Notes
 ===============
-The current YDK release version is 0.5.5 (alpha). YDK-Gen is licensed under the Apache 2.0 License.
+The current YDK release version is 0.6.2 (alpha). YDK-Gen is licensed under the Apache 2.0 License.

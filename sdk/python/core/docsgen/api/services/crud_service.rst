@@ -2,17 +2,17 @@ CRUD Service
 ============
 
 
-YDK CRUDService provides Create/Read/Update/Delete funcionalities.
+YDK CRUDService provides Create/Read/Update/Delete functionalities.
 
-.. py:class:: ydk.services.CRUDService()
+.. py:class:: ydk.services.CRUDService
 
-    Supports CRUD operations on entities.
+    Supports CRUD operations on model API entities.
 
     .. py:method:: create(provider, entity)
 
         Create the entity.
 
-        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`.) Provider instance.
+        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`) Provider instance.
         :param entity: (:py:class:`Entity<ydk.types.Entity>`) Entity instance.
         :return: ``True`` if successful, ``False`` if not.
         :raises: :py:exc:`YPYError<ydk.errors.YPYError>` if an error has occurred.
@@ -21,7 +21,7 @@ YDK CRUDService provides Create/Read/Update/Delete funcionalities.
 
         Read the entity.
 
-        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`.) Provider instance.
+        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`) Provider instance.
         :param read_filter: (:py:class:`Entity<ydk.types.Entity>`) Read filter entity instance.
         :return: An instance of :py:class:`Entity<ydk.types.Entity>` as identified by the ``filter`` if successful, ``None`` if not.
         :raises: :py:exc:`YPYError<ydk.errors.YPYError>` if an error has occurred.
@@ -30,7 +30,7 @@ YDK CRUDService provides Create/Read/Update/Delete funcionalities.
 
         Read only config.
 
-        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`.) Provider instance.
+        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`) Provider instance.
         :param read_filter: (:py:class:`Entity<ydk.types.Entity>`) Read filter entity instance.
         :return: An instance of :py:class:`Entity<ydk.types.Entity>` as identified by the ``filter`` if successful, ``None`` if not.
         :raises: :py:exc:`YPYError<ydk.errors.YPYError>` if an error has occurred.
@@ -39,7 +39,7 @@ YDK CRUDService provides Create/Read/Update/Delete funcionalities.
 
         Update the entity.
 
-        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`.) Provider instance.
+        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`) Provider instance.
         :param entity: (:py:class:`Entity<ydk.types.Entity>`) Entity instance.
         :return: ``True`` if successful, ``False`` if not.
         :raises: :py:exc:`YPYError<ydk.errors.YPYError>` if an error has occurred.
@@ -48,7 +48,7 @@ YDK CRUDService provides Create/Read/Update/Delete funcionalities.
 
         Delete the entity
 
-        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`.) Provider instance.
+        :param provider: (:py:class:`ServiceProvider<ydk.path.ServiceProvider>`) Provider instance.
         :param entity: (:py:class:`Entity<ydk.types.Entity>`) Entity instance.
         :return: ``True`` if successful, ``False`` if not.
         :raises: :py:exc:`YPYError<ydk.errors.YPYError>` if an error has occurred.

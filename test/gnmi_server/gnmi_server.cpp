@@ -60,7 +60,7 @@ class gNMIImpl final : public gNMI::Service
         response->set_gnmi_version("0.2.2");
 
         // read cap file and populate model data
-        std::ifstream capfile("/usr/local/share/ydk/0.0.0.0\:50051/capabilities.txt");
+        std::ifstream capfile("/usr/local/share/ydk/0.0.0.0:50051/capabilities.txt");
 
         ::gnmi::ModelData* modeldata;
         ::gnmi::Encoding encoding;
@@ -276,8 +276,8 @@ void RunServer()
         std::string server_key;
         std::string server_cert;
     
-        std::ifstream kf("./keys/ems-key.pem");
-        std::ifstream cf("./keys/ems.pem");
+        std::ifstream kf("../keys/ems-key.pem");
+        std::ifstream cf("../keys/ems.pem");
     
         server_key.assign((std::istreambuf_iterator<char>(kf)),(std::istreambuf_iterator<char>()));
         server_cert.assign((std::istreambuf_iterator<char>(cf)),(std::istreambuf_iterator<char>()));

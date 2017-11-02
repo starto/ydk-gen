@@ -62,7 +62,7 @@ function run_test {
 function init_env {
     print_msg "init_env"
 
-    export YDKGEN_HOME=`pwd` && cd $YDKGEN_HOME
+    cd $YDKGEN_HOME
 
     PY_GENERATE="$1"
     PY_TEST="$2"
@@ -110,6 +110,41 @@ function init_tcp_server {
     fi
 }
 
+function init_gnmi_server {
+    print_msg "starting gnmi server"
+    mkdir -p test/gnmi_server/build && cd test/gnmi_server/build
+    cmake .. && make
+    ./gnmi_server &
+    local status=$?
+    if [ $status -ne 0 ]; then
+        print_msg "Could not start gnmi server"
+        exit $status
+    fi
+    cd -
+}
+
+function init_go_env {
+    print_msg "init_go_env"
+
+    print_msg "${GOPATH}"
+    print_msg "${GOROOT}"
+
+    export PATH=$PATH:$GOPATH/bin
+    export PATH=$PATH:$GOROOT/bin
+
+    cd $YDKGEN_HOME
+
+    if [[ -z "${GOPATH// }" ]]; then
+        export GOPATH="`pwd`/golang"
+    else
+        export GOPATH="`pwd`/golang:$GOPATH"
+    fi
+
+    go get github.com/stretchr/testify
+
+    cd -
+}
+
 function py_sanity_ydktest {
     print_msg "Generating, installing and testing python ydktest bundle"
 
@@ -137,6 +172,7 @@ function py_sanity_ydktest_install {
     print_msg "py_sanity_ydktest_install"
     print_msg "Installing"
     cd $YDKGEN_HOME && source test_env/bin/activate
+    cd gen-api/python/ydk && python setup.py build && cd -
     pip install gen-api/python/ydk/dist/ydk*.tar.gz
     pip install gen-api/python/ydktest-bundle/dist/ydk*.tar.gz
 }
@@ -315,6 +351,17 @@ function py_sanity_common_cache {
     run_test sdk/python/core/tests/test_sanity_types.py --common-cache
 }
 
+function py_sanity_one_class_per_module {
+    print_msg "deactivate virtualenv to gather coverage"
+    deactivate
+    cd $YDKGEN_HOME && source gen_env/bin/activate
+    run_test generate.py --bundle profiles/test/ydktest.json -o
+    source test_env/bin/activate
+    pip install gen-api/python/ydktest-bundle/dist/ydktest*.tar.gz
+    run_test sdk/python/core/tests/test_sanity_levels.py
+    run_test sdk/python/core/tests/test_sanity_types.py
+}
+
 function cpp_sanity_core_gen_install {
     print_msg "cpp_sanity_core_gen_install"
 
@@ -380,6 +427,30 @@ function cpp_sanity_ydktest_test {
     fi
 }
 
+function go_samples {
+    print_msg "go_samples"
+
+    export CXX=/usr/bin/clang++
+    export CC=/usr/bin/clang
+
+    print_msg "CC: ${CC}"
+    print_msg "CXX: ${CXX}"
+
+    cd $YDKGEN_HOME/sdk/go/core/samples
+    run_exec_test go run cgo_path/cgo_path.go
+    run_exec_test go run bgp_create/bgp_create.go
+    run_exec_test go run bgp_read/bgp_read.go
+    run_exec_test go run bgp_delete/bgp_delete.go
+    cd -
+}
+
+function go_behavioral_tests {
+    print_msg "go_behavioral_tests"
+    cd $YDKGEN_HOME/sdk/go/core/tests
+    run_exec_test go test
+    cd -
+}
+
 function teardown_env {
     print_msg "teardown_env"
     deactivate
@@ -399,6 +470,7 @@ function py_tests {
     py_sanity_deviation
     py_sanity_augmentation
     py_sanity_common_cache
+    py_sanity_one_class_per_module
     teardown_env
 }
 
@@ -408,6 +480,22 @@ function cpp_tests {
     cpp_sanity_core_test
     cpp_sanity_ydktest
     teardown_env
+}
+
+function go_tests {
+    print_msg "go_tests"
+
+    init_confd $YDKGEN_HOME/sdk/cpp/core/tests/confd/ydktest
+
+    # TODO: go get
+    cd $YDKGEN_HOME
+
+    mkdir -p golang/src/github.com/CiscoDevNet/ydk-go/ydk
+    cp -r sdk/go/core/ydk/* golang/src/github.com/CiscoDevNet/ydk-go/ydk/
+    run_exec_test ./generate.py --bundle profiles/test/ydktest-cpp.json --go
+    cp -r gen-api/go/ydktest-bundle/ydk/* golang/src/github.com/CiscoDevNet/ydk-go/ydk/
+    go_samples
+    go_behavioral_tests
 }
 
 function cpp_test_gen_test {
@@ -473,12 +561,18 @@ function test_gen_tests {
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
 
+export YDKGEN_HOME="`pwd`"
+
 init_rest_server
 init_tcp_server
+==== BASE ====
+==== BASE ====
 
 cpp_tests
 py_tests
+go_tests
 # test_gen_tests
+
 cd $YDKGEN_HOME
 print_msg "gathering cpp coverage"
 print_msg "combining python coverage"

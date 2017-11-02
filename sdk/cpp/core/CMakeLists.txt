@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.9)
 cmake_policy(SET CMP0048 NEW)
-project(ydk VERSION 0.6.0 LANGUAGES C CXX)
+project(ydk VERSION 0.8.0 LANGUAGES C CXX)
 
 
 set(YDK_DESCRIPTION "YANG Development Kit Library. The library for  YDK API.")
@@ -117,7 +117,7 @@ endif()
 
 set(HOME_DIRECTORY $ENV{HOME})
 
-set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++11")
+set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG   "-g3 -O0 -fprofile-arcs -ftest-coverage")
 
@@ -130,7 +130,11 @@ else()
     option(ENABLE_VALGRIND_TESTS "Build tests with valgrind" OFF)
 endif()
 
-# Set LibYDK variables7y4
+set(libgnmi_sources
+    ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/gnmi.grpc.pb.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/gnmi.pb.cc)
+
+# Set LibYDK variables
 set(libydk_src
     src/bits.cpp
     src/codec_provider.cpp
@@ -153,7 +157,7 @@ set(libydk_src
     src/netconf_provider.cpp
     src/netconf_service.cpp
     src/path/netconf_session.cpp
-    src/gnmi_client.cpp    
+    src/gnmi_client.cpp
     src/gnmi_provider.cpp
     src/path/gnmi_session.cpp
     src/gnmi_service.cpp
@@ -167,6 +171,7 @@ set(libydk_src
     src/value_list.cpp
     src/xml_subtree_codec.cpp
     src/ydk_operation.cpp
+    src/ydk.cpp
     src/ydk_yang.cpp
     src/path/annotation.cpp
     src/path/capability.cpp
@@ -221,7 +226,8 @@ set(libydk_install_headers
     src/service_provider.hpp
     src/types.hpp
     src/xml_subtree_codec.hpp
-    src/validation_service.hpp)
+    src/validation_service.hpp
+    src/ydk.h)
 
 # Set LibNetconf variables
 set(libnetconf_location ${CMAKE_CURRENT_BINARY_DIR}/project_libnetconf/src/project_libnetconf)
@@ -291,11 +297,6 @@ set(libgnmi_headers
     ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/gnmi.grpc.pb.h
     ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/gnmi.pb.h)
 
-set(libgnmi_sources
-    ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/gnmi.grpc.pb.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/gnmi.pb.cc)
-
-
 # Set LibYang variables
 set(libyang_location ${CMAKE_CURRENT_BINARY_DIR}/project_libyang/src/project_libyang)
 
@@ -359,7 +360,6 @@ find_library(pthread_location pthread)
 find_library(dl_location dl)
 find_package(LibXml2 REQUIRED)
 find_package(LibSSH REQUIRED)
-find_package(PythonLibs REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
 
@@ -404,22 +404,28 @@ add_dependencies(libnetconf project_libnetconf)
 
 
 # Add LibgNMI
-set(libgnmi_generated_location ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated)
-set(libgnmi_include_location include/libgnmi)
+set(libgnmi_headers_location ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated)
 
-# Download gNMI proto
-file(DOWNLOAD "https://raw.githubusercontent.com/shgandhi/reference/master/rpc/gnmi/gnmi.proto" ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/gnmi.proto)
+ExternalProject_Add(
+    download_generate_proto_cpp
+    PREFIX "${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi"
+    DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi"
+    DOWNLOAD_NAME "gnmi.proto"
+    DOWNLOAD_COMMAND curl https://raw.githubusercontent.com/shgandhi/reference/master/rpc/gnmi/gnmi.proto > gnmi.proto
+    CONFIGURE_COMMAND ""
+    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi"
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi"
+    BUILD_COMMAND mkdir -p generated && ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out generated/ gnmi.proto && ${PROTOBUF_PROTOC_EXECUTABLE} --grpc_out generated/ --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} gnmi.proto
+    INSTALL_COMMAND ""
+)
 
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/project_libgnmi/generated/)
+add_custom_command(OUTPUT ${libgnmi_sources}
+  DEPENDS download_generate_proto_cpp
+  COMMENT "Generating GNMI code"
+  VERBATIM
+)
 
-execute_process(COMMAND  which grpc_cpp_plugin OUTPUT_VARIABLE GRPC_CPP_PLUGIN)
-string(STRIP ${GRPC_CPP_PLUGIN} GRPC_CPP_PLUGIN)
-
-# Compile gNMI proto to generate headers and sources
-execute_process(COMMAND protoc -I ./project_libgnmi --grpc_out=./project_libgnmi/generated/ --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ./project_libgnmi/gnmi.proto)
-execute_process(COMMAND protoc -I ./project_libgnmi --cpp_out=./project_libgnmi/generated/ ./project_libgnmi/gnmi.proto)
-
-install(FILES ${libgnmi_headers} ${libgnmi_sources} DESTINATION ${libgnmi_include_location})
+add_custom_target(ydk_gnmi ALL DEPENDS ${libgnmi_sources})
 
 # Add LibYang
 set(libyang_include_location include/libyang)
@@ -464,7 +470,7 @@ include_directories(
     ${libnetconf_headers_location}
     ${libnetconf_location}/headers
     ${Protobuf_INCLUDE_DIR}
-    ${libgnmi_generated_location}
+    ${libgnmi_headers_location}
     ${libyang_headers_location}
     ${libyang_location}/headers
     ${PROJECT_SOURCE_DIR}/src
@@ -472,11 +478,7 @@ include_directories(
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(libgnmi_client_sources "src/gnmi_client.cpp" ${libgnmi_headers} ${libgnmi_sources})
-add_library(gnmi STATIC ${libgnmi_client_sources})
-target_link_libraries(gnmi grpc++_unsecure grpc gpr ${PROTOBUF_LIBRARY})
-
-add_library(ydk STATIC ${libydk_src} ${libnetconf_inc_objs} ${libyang_inc_objs})
+add_library(ydk STATIC ${libydk_src} ${libgnmi_sources} ${libnetconf_inc_objs} ${libyang_inc_objs})
 
 target_link_libraries(ydk
     ${LIBXML2_LIBRARIES}
@@ -489,16 +491,17 @@ target_link_libraries(ydk
     ${dl_location}
     libnetconf
     libyang
-    gnmi
-    ${PYTHON_LIBRARIES}
+    ${GRPC_GRPC++_LIBRARY}
+    -rdynamic
+    ${PROTOBUF_LIBRARY}
 )
 
 set_property(TARGET ydk PROPERTY CXX_STANDARD 11)
 set_property(TARGET ydk PROPERTY CXX_STANDARD_REQUIRED ON)
 
 install(TARGETS ydk DESTINATION ${LIB_INSTALL_DIR})
-install(TARGETS gnmi DESTINATION ${LIB_INSTALL_DIR})
 install(FILES ${libydk_install_headers} DESTINATION ${INCLUDE_INSTALL_DIR})
+install(FILES ${libgnmi_headers} DESTINATION ${INCLUDE_INSTALL_DIR})
 install(FILES ${SPDLOG_HEADERS} DESTINATION ${spdlog_include_location})
 install(FILES ${SPDLOG_DETAILS_HEADERS} DESTINATION ${spdlog_details_include_location})
 install(FILES ${SPDLOG_FMT_HEADERS} DESTINATION ${spdlog_fmt_include_location})

@@ -15,8 +15,8 @@
  ------------------------------------------------------------------*/
 #define TEST_MODULE gNMIClientTest
 #include <string.h>
-#include "../core/src/gnmi_client.hpp"
-#include "../core/src/errors.hpp"
+#include <ydk/gnmi_client.hpp>
+#include <ydk/errors.hpp>
 #include <iostream>
 #include <sys/time.h>
 #include "catch.hpp"

@@ -42,13 +42,13 @@ gNMIClient::gNMIClient(shared_ptr<Channel> channel) : stub_(gNMI::NewStub(channe
 }
 
 static bool check_capabilities_status(Status status);
-static string parse_get_request_payload(string payload);
-static json parse_set_request_payload(string payload);
-static json parse_gnmi_set_request_payload(string payload);
-static vector<string> get_path_from_payload_filter(string payload_filter, vector<string> container);
+static string parse_get_request_payload(const string & payload);
+static json parse_set_request_payload(const string & payload);
+static json parse_gnmi_set_request_payload(const string & payload);
+static vector<string> get_path_from_payload_filter(const string & payload_filter, vector<string> container);
 static string check_if_path_has_value(string element);
-static string format_notification_response(string prefix_to_prepend, string path_to_prepend, string value);
-static ::gnmi::SetRequest allocate_set_request_path(string operation, ::gnmi::SetRequest request, vector<string> root_path, json config_payload);
+static string format_notification_response(string prefix_to_prepend, const std::string& path_to_prepend, const std::string& value);
+static ::gnmi::SetRequest allocate_set_request_path(const string & operation, ::gnmi::SetRequest request, vector<string> root_path, json config_payload);
 
 
 int gNMIClient::connect(string address, bool is_secure) 
@@ -67,7 +67,7 @@ int gNMIClient::connect(string address, bool is_secure)
         ssl_opts.pem_root_certs = server_cert;
         args.SetSslTargetNameOverride("ems.cisco.com");
 
-        std::cout << "In gnmi_connect server cert: " << server_cert << std::endl;
+        YLOG_DEBUG("In gnmi_connect server cert: {}", server_cert);
     
         // TODO: Authenticate Client at Server
         /* string client_key, client_cert;
@@ -188,7 +188,7 @@ vector<string> gNMIClient::get_capabilities()
     return capabilities;
 }
 
-static vector<string> parse_get_request_payload(string payload, vector<string> path_container) 
+static vector<string> parse_get_request_payload(const string & payload, vector<string> path_container) 
 {
     auto payload_to_parse = json::parse("{" + payload + "}");
     string payload_filter = payload_to_parse.value("/rpc/ietf-netconf:get-config/filter"_json_pointer, "null");
@@ -212,7 +212,7 @@ static vector<string> parse_get_request_payload(string payload, vector<string> p
     return path_container;
 }
 
-::gnmi::GetRequest gNMIClient::populate_get_request(::gnmi::GetRequest request, string payload) 
+::gnmi::GetRequest gNMIClient::populate_get_request(::gnmi::GetRequest request, const std::string& payload) 
 {   
     vector<string> container;   
     vector<string> path_container = parse_get_request_payload(payload, container);
@@ -225,7 +225,7 @@ static vector<string> parse_get_request_payload(string payload, vector<string> p
     return request;
 }
 
-json parse_set_request_payload(string payload) 
+static json parse_set_request_payload(const string & payload)
 {
     auto payload_to_parse = json::parse("{" + payload + "}");
     json config_payload = json::parse(payload_to_parse.value("/rpc/ietf-netconf:edit-config/config"_json_pointer, "Empty Config"));
@@ -233,7 +233,7 @@ json parse_set_request_payload(string payload)
     return config_payload;
 }
 
-json parse_gnmi_set_request_payload(string payload) 
+static json parse_gnmi_set_request_payload(const string & payload)
 {
     auto payload_to_parse = json::parse("{" + payload + "}");
     json default_payload = json::parse("{\"value\":\"null\"}");
@@ -241,7 +241,7 @@ json parse_gnmi_set_request_payload(string payload)
     return config_payload;
 }
 
-::gnmi::SetRequest allocate_set_request_path(string operation, ::gnmi::SetRequest request, vector<string> root_path, json config_payload)
+static ::gnmi::SetRequest allocate_set_request_path(const string & operation, ::gnmi::SetRequest request, vector<string> root_path, json config_payload)
 {
     ::gnmi::Path* path = new ::gnmi::Path;
     ::gnmi::Update* update;
@@ -271,7 +271,7 @@ json parse_gnmi_set_request_payload(string payload)
     return request;  
 }
 
-::gnmi::SetRequest gNMIClient::populate_set_request(::gnmi::SetRequest request, string payload, string operation) 
+::gnmi::SetRequest gNMIClient::populate_set_request(::gnmi::SetRequest request, const std::string& payload, const std::string& operation) 
 {   
     YLOG_DEBUG("Payload {}\n Operation {}", payload, operation);
     json config_payload;
@@ -355,7 +355,7 @@ string gNMIClient::get_value_from_update(::gnmi::Update update)
     return value_for_payload;
 }
 
-static string format_notification_response(string prefix_to_prepend, string path_to_prepend, string value)
+static string format_notification_response(string prefix_to_prepend, const std::string& path_to_prepend, const std::string& value)
 {
     string reply_to_parse;
 
@@ -371,7 +371,7 @@ static string format_notification_response(string prefix_to_prepend, string path
     return reply_to_parse;
 }
 
-string gNMIClient::parse_get_response(::gnmi::GetResponse* response) 
+string gNMIClient::parse_get_response(::gnmi::GetResponse* response)
 {
     ::gnmi::Notification notification;
     ::gnmi::Update update;
@@ -414,7 +414,7 @@ string gNMIClient::parse_set_response(::gnmi::SetResponse* response)
     return reply_to_parse;
 }
 
-string gNMIClient::execute_wrapper(const string & payload, string operation)
+string gNMIClient::execute_wrapper(const string & payload, const std::string& operation)
 {
     if (operation == "read")
     {
@@ -422,19 +422,20 @@ string gNMIClient::execute_wrapper(const string & payload, string operation)
         ::gnmi::GetResponse response;
 
         request = populate_get_request(request, payload);
-        YLOG_DEBUG("\n===============Get Request Sent================\n{}\n", request.DebugString().c_str());
+        YLOG_INFO("\n===============Get Request Sent================\n{}\n", request.DebugString().c_str());
         string reply = execute_get_payload(request, &response);
-        YLOG_DEBUG("Get Operation {} Succeeded", operation);
+        YLOG_INFO("Get Operation {} Succeeded", operation);
         return reply;
-    } else if ((operation == "create")||(operation == "update")||(operation == "delete")||(operation == "gnmi_create")||(operation == "gnmi_delete"))
+    }
+    else if ((operation == "create")||(operation == "update")||(operation == "delete")||(operation == "gnmi_create")||(operation == "gnmi_delete"))
     {   
         ::gnmi::SetRequest request;
         ::gnmi::SetResponse response;
 
         request = populate_set_request(request, payload, operation);
-        YLOG_DEBUG("\n===============Set Request Sent================\n{}\n", request.DebugString().c_str());
+        YLOG_INFO("\n===============Set Request Sent================\n{}\n", request.DebugString().c_str());
         string reply = execute_set_payload(request, &response);
-        YLOG_DEBUG("Set Operation {} Succeeded", operation);
+        YLOG_INFO("Set Operation {} Succeeded", operation);
         return reply;
 
     }
@@ -445,7 +446,7 @@ string gNMIClient::execute_get_payload(const GetRequest& request, GetResponse* r
     grpc::ClientContext context;
     grpc::Status status;
     status = stub_->Get(&context, request, response);
-    YLOG_DEBUG("\n=============Get Response Received=============\n{}\n", response->DebugString().c_str());
+    YLOG_INFO("\n=============Get Response Received=============\n{}\n", response->DebugString().c_str());
     if (!(status.ok())) 
     {
         YLOG_ERROR("Get RPC Status Not OK");
@@ -464,7 +465,7 @@ string gNMIClient::execute_set_payload(const SetRequest& request, SetResponse* r
     grpc::ClientContext context;
     grpc::Status status;
     status = stub_->Set(&context, request, response);
-    YLOG_DEBUG("\n=============Set Response Received=============\n{}\n", response->DebugString().c_str());
+    YLOG_INFO("\n=============Set Response Received=============\n{}\n", response->DebugString().c_str());
     if (!(status.ok())) 
     {
         YLOG_ERROR("Set RPC Status not OK");

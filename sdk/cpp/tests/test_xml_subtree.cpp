@@ -194,8 +194,8 @@ bgp->global->config->as = 65172;
 bgp->global->config->router_id = "1.2.3.4";
 
 auto afi_safi = make_unique<openconfig_bgp::Bgp::Global::AfiSafis::AfiSafi>();
-afi_safi->afi_safi_name = openconfig_bgp_types::L3VPN_IPV4_UNICAST();
-afi_safi->config->afi_safi_name = openconfig_bgp_types::L3VPN_IPV4_UNICAST();
+afi_safi->afi_safi_name = openconfig_bgp_types::L3VPNIPV4UNICAST();
+afi_safi->config->afi_safi_name = openconfig_bgp_types::L3VPNIPV4UNICAST();
 afi_safi->config->enabled = true;
 afi_safi->parent = bgp->global->afi_safis.get();
 bgp->global->afi_safis->afi_safi.push_back(move(afi_safi));
@@ -256,6 +256,7 @@ auto g = codec.decode(R"(<runner xmlns="http://cisco.com/ns/yang/ydktest-sanity"
 </runner>
 )", r_1);
 auto r = crud.read(provider, *g);
+REQUIRE(r!=nullptr);
 
 REQUIRE(
         ((ydktest_sanity::Runner&)*s).ytypes->built_in_t->number8
@@ -277,6 +278,10 @@ CrudService crud{};
 
 XmlSubtreeCodec codec{};
 auto bgp = make_shared<openconfig_bgp::Bgp>();
+
+openconfig_bgp::Bgp bgp_set{};
+bool reply = crud.delete_(provider, bgp_set);
+REQUIRE(reply);
 
 auto payload = R"(<bgp xmlns="http://openconfig.net/yang/bgp">
           <global>
@@ -304,5 +309,6 @@ crud.create(provider, *a);
 auto v=make_shared<openconfig_bgp::Bgp>();
 v->global->yfilter = YFilter::read;
 auto r = crud.read_config(provider, *v);
+REQUIRE(r!=nullptr);
 REQUIRE(*r==*g);
 }

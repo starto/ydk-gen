@@ -16,15 +16,13 @@
 
 """
 printer.py
- 
+
  YANG model driven API, emitter.
- 
+
 """
 
 
-from .python.bits_printer import BitsPrinter
 from .python.class_docstring_printer import ClassDocstringPrinter
-from .python.class_has_data_printer import ClassHasDataPrinter
 from .python.class_inits_printer import ClassInitsPrinter
 from .python.class_printer import ClassPrinter
 from .python.enum_printer import EnumPrinter

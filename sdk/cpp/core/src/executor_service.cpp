@@ -22,6 +22,7 @@
 //////////////////////////////////////////////////////////////////
 
 #include "entity_data_node_walker.hpp"
+#include "entity_util.hpp"
 #include "executor_service.hpp"
 #include "logger.hpp"
 #include "service_provider.hpp"
@@ -59,7 +60,8 @@ shared_ptr<Entity> ExecutorService::execute_rpc(ServiceProvider& provider,
 
     // Handle input
     auto input = rpc_entity.get_child_by_name("input", "");
-    walk_children(input, rpc_input, "");
+    if(input != nullptr && (input->has_operation() || input->has_data() || input->is_presence_container))
+        walk_children(input, rpc_input, "");
 
     // Execute
     auto result_datanode = (*rpc)(provider.get_session());
@@ -82,7 +84,7 @@ static void walk_children(std::shared_ptr<Entity> entity, path::DataNode & rpc_i
     if (entity != nullptr)
     {
         std::map<string, std::shared_ptr<Entity>> children = entity->get_children();
-        auto entity_path = entity->get_entity_path(entity->parent);
+        auto entity_path = get_entity_path(*entity, entity->parent);
         YLOG_DEBUG("Children count for: {} : {}", entity_path.path, children.size());
 
         if (path != "")
@@ -94,7 +96,10 @@ static void walk_children(std::shared_ptr<Entity> entity, path::DataNode & rpc_i
         YLOG_DEBUG("Path: {}", path);
 
         for( auto const & child : children )
-            walk_children(child.second, rpc_input, path);
+        {
+            if(child.second->has_operation() || child.second->has_data() || child.second->is_presence_container)
+                walk_children(child.second, rpc_input, path);
+        }
 
         // if there are leafs, create from entity path
         if (entity_path.value_paths.size() != 0)
@@ -106,7 +111,7 @@ static void walk_children(std::shared_ptr<Entity> entity, path::DataNode & rpc_i
 
 static void create_from_entity_path(std::shared_ptr<Entity> entity, path::DataNode & rpc_input, const std::string & path)
 {
-    auto entity_path = entity->get_entity_path(entity->parent);
+    auto entity_path = get_entity_path(*entity, entity->parent);
 
     for (std::pair<std::string, LeafData> child : entity_path.value_paths)
     {
@@ -124,10 +129,10 @@ static void create_from_children(std::map<string, std::shared_ptr<Entity>> & chi
 {
     for( auto const & child : children )
     {
-        if ( child.second->get_children().size() == 0 )
+        if(child.second->has_operation() || child.second->has_data() || child.second->is_presence_container)
         {
             YLOG_DEBUG("Creating child '{}': {}",child.first,
-                child.second->get_entity_path(child.second->parent).path);
+                get_entity_path(*(child.second), child.second->parent).path);
 
             rpc_input.create_datanode(child.first);
         }

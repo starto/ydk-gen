@@ -27,10 +27,11 @@
 #include <ydk/entity_util.hpp>
 #include <ydk/executor_service.hpp>
 #include <ydk/filters.hpp>
+#include <ydk/gnmi_provider.hpp>
+#include <ydk/gnmi_service.hpp>
 #include <ydk/logging_callback.hpp>
 #include <ydk/netconf_provider.hpp>
 #include <ydk/netconf_service.hpp>
-#include <ydk/gnmi_provider.hpp>
 #include <ydk/opendaylight_provider.hpp>
 #include <ydk/restconf_provider.hpp>
 #include <ydk/types.hpp>
@@ -133,12 +134,19 @@ public:
         );
     }
 
-    const ydk::EntityPath get_entity_path(ydk::Entity* ancestor) const override {
-        PYBIND11_OVERLOAD_PURE(
-            ydk::EntityPath,
+    std::string get_absolute_path() const override {
+        PYBIND11_OVERLOAD(
+            std::string,
             ydk::Entity,
-            get_entity_path,
-            ancestor
+            get_absolute_path
+        );
+    }
+
+    LeafDataList get_name_leaf_data() const override {
+        PYBIND11_OVERLOAD_PURE(
+            LeafDataList,
+            ydk::Entity,
+            get_name_leaf_data
         );
     }
 
@@ -163,6 +171,14 @@ public:
             bool,
             ydk::Entity,
             has_operation
+        );
+    }
+
+    std::vector<std::string> get_order_of_children() const override {
+        PYBIND11_OVERLOAD(
+            std::vector<std::string>,
+            ydk::Entity,
+            get_order_of_children
         );
     }
 
@@ -253,9 +269,8 @@ public:
 };
 
 
-PYBIND11_PLUGIN(ydk_)
+PYBIND11_MODULE(ydk_, ydk)
 {
-    module ydk("ydk_", "YDK module");
     module providers = ydk.def_submodule("providers", "providers module");
     module services = ydk.def_submodule("services", "services module");
     module filters = ydk.def_submodule("filters", "filters module");
@@ -282,33 +297,57 @@ PYBIND11_PLUGIN(ydk_)
         .def("invoke", &ydk::path::Session::invoke, return_value_policy::reference);
 
     class_<ydk::path::NetconfSession, ydk::path::Session>(path, "NetconfSession")
-        .def(init<ydk::path::Repository&, const std::string&, const std::string, const std::string, int, const std::string&, bool>(),
-             arg("repo"),
-             arg("address"),
-             arg("username"),
-             arg("password"),
-             arg("port") = 830,
-             arg("protocol") = string("ssh"),
-             arg("on_demand") = true)
-        .def(init<const std::string&, const std::string&, const std::string&, int, const std::string&, bool, bool>(),
-             arg("address"),
-             arg("username"),
-             arg("password"),
-             arg("port") = 830,
-             arg("protocol") = string("ssh"),
-             arg("on_demand") = true,
-             arg("common_cache") = false)
+        .def("__init__",
+            [](ydk::path::NetconfSession &nc_session, ydk::path::Repository& repo, const string& address, const string& username, const string& password, int port, const string& protocol, bool on_demand, int timeout) {
+                    new(&nc_session) ydk::path::NetconfSession(repo, address, username, password, port, protocol, on_demand, timeout);
+            },
+            arg("repo"),
+            arg("address"),
+            arg("username"),
+            arg("password"),
+            arg("port")=830,
+            arg("protocol")=string("ssh"),
+            arg("on_demand")=true,
+            arg("timeout")=-1)
+        .def("__init__",
+            [](ydk::path::NetconfSession &nc_session, ydk::path::Repository& repo, const string& address, const string& username, const string& password, void* port, const string& protocol, bool on_demand, int timeout) {
+                    new(&nc_session) ydk::path::NetconfSession(repo, address, username, password, 830, protocol, on_demand, timeout);
+            },
+            arg("repo"),
+            arg("address"),
+            arg("username"),
+            arg("password"),
+            arg("port")=nullptr,
+            arg("protocol")=string("ssh"),
+            arg("on_demand")=true,
+            arg("timeout")=-1)
+        .def("__init__",
+            [](ydk::path::NetconfSession &nc_session, const string& address, const string& username, const string& password, int port, const string& protocol, bool on_demand, bool common_cache, int timeout) {
+                    new(&nc_session) ydk::path::NetconfSession(address, username, password, port, protocol, on_demand, common_cache, timeout);
+            },
+            arg("address"),
+            arg("username"),
+            arg("password"),
+            arg("port")=830,
+            arg("protocol")=string("ssh"),
+            arg("on_demand")=true,
+            arg("common_cache")=false,
+            arg("timeout")=-1)
+        .def("__init__",
+            [](ydk::path::NetconfSession &nc_session, const string& address, const string& username, const string& password, void* port, const string& protocol, bool on_demand, bool common_cache, int timeout) {
+                    new(&nc_session) ydk::path::NetconfSession(address, username, password, 830, protocol, on_demand, common_cache, timeout);
+            },
+            arg("address"),
+            arg("username"),
+            arg("password"),
+            arg("port")=nullptr,
+            arg("protocol")=string("ssh"),
+            arg("on_demand")=true,
+            arg("common_cache")=false,
+            arg("timeout")=-1)
         .def("get_root_schema", &ydk::path::NetconfSession::get_root_schema, return_value_policy::reference)
-        .def("invoke", &ydk::path::NetconfSession::invoke, return_value_policy::reference);
-
-        class_<ydk::path::gNMISession, ydk::path::Session>(path, "gNMISession")
-        .def(init<ydk::path::Repository&, const std::string&>(),
-             arg("repo"),
-             arg("address"))
-        .def(init<const std::string&>(),
-             arg("address"))
-        .def("get_root_schema", &ydk::path::gNMISession::get_root_schema, return_value_policy::reference)
-        .def("invoke", &ydk::path::gNMISession::invoke, return_value_policy::reference);
+        .def("invoke", &ydk::path::NetconfSession::invoke, return_value_policy::reference)
+        .def("get_capabilities", &ydk::path::NetconfSession::get_capabilities, return_value_policy::reference);
 
     class_<ydk::path::RestconfSession, ydk::path::Session>(path, "RestconfSession")
         .def("__init__",
@@ -332,6 +371,15 @@ PYBIND11_PLUGIN(ydk_)
              arg("state_url_root"))
         .def("get_root_schema", &ydk::path::RestconfSession::get_root_schema, return_value_policy::reference)
         .def("invoke", &ydk::path::RestconfSession::invoke, return_value_policy::reference);
+
+    class_<ydk::path::gNMISession, ydk::path::Session>(path, "gNMISession")
+        .def(init<ydk::path::Repository&, const std::string&>(),
+             arg("repo"),
+             arg("address"))
+        .def(init<const std::string&>(),
+             arg("address"))
+        .def("get_root_schema", &ydk::path::gNMISession::get_root_schema, return_value_policy::reference)
+        .def("invoke", &ydk::path::gNMISession::invoke, return_value_policy::reference);
 
     class_<ydk::path::Statement>(path, "Statement")
         .def(init<const string &, const string &>(), arg("keyword"), arg("arg"))
@@ -392,7 +440,7 @@ PYBIND11_PLUGIN(ydk_)
             (std::shared_ptr<ydk::path::RootSchemaNode> (ydk::path::Repository::*)(const std::vector<ydk::path::Capability>&)) &ydk::path::Repository::create_root_schema,
             return_value_policy::move)
         .def("create_root_schema",
-            (std::shared_ptr<ydk::path::RootSchemaNode> (ydk::path::Repository::*)(const std::vector<std::unordered_map<std::string, ydk::path::Capability>>& lookup_tables,
+            (std::shared_ptr<ydk::path::RootSchemaNode> (ydk::path::Repository::*)(const std::unordered_map<std::string, ydk::path::Capability>& lookup_tables,
                                                                                    const std::vector<ydk::path::Capability>& caps_to_load))
             &ydk::path::Repository::create_root_schema,
             return_value_policy::move);
@@ -460,7 +508,8 @@ PYBIND11_PLUGIN(ydk_)
 
     class_<ydk::Entity, PyEntity, shared_ptr<ydk::Entity>>(types, "Entity")
         .def(init<>())
-        .def("get_entity_path", &ydk::Entity::get_entity_path, return_value_policy::reference)
+        .def("get_name_leaf_data", &ydk::Entity::get_name_leaf_data, return_value_policy::reference)
+        .def("get_absolute_path", &ydk::Entity::get_absolute_path, return_value_policy::reference)
         .def("get_segment_path", &ydk::Entity::get_segment_path, return_value_policy::reference)
         .def("get_child_by_name", &ydk::Entity::get_child_by_name, return_value_policy::reference)
         .def("set_value", &ydk::Entity::set_value, return_value_policy::reference)
@@ -468,6 +517,7 @@ PYBIND11_PLUGIN(ydk_)
         .def("has_data", &ydk::Entity::has_data, return_value_policy::reference)
         .def("has_operation", &ydk::Entity::has_operation, return_value_policy::reference)
         .def("get_children", &ydk::Entity::get_children, return_value_policy::reference)
+        .def("get_order_of_children", &ydk::Entity::get_order_of_children, return_value_policy::reference)
         .def("clone_ptr", &ydk::Entity::clone_ptr)
         .def("__eq__", [](ydk::Entity& left, ydk::Entity& right)
                          {
@@ -481,11 +531,13 @@ PYBIND11_PLUGIN(ydk_)
         .def_readwrite("yang_name", &ydk::Entity::yang_name, return_value_policy::reference)
         .def_readwrite("yang_parent_name", &ydk::Entity::yang_parent_name, return_value_policy::reference)
         .def_readwrite("is_presence_container", &ydk::Entity::is_presence_container, return_value_policy::reference)
+        .def_readwrite("is_top_level_class", &ydk::Entity::is_top_level_class)
+        .def_readwrite("has_list_ancestor", &ydk::Entity::has_list_ancestor)
         .def_property("parent", &ydk::Entity::get_parent, &ydk::Entity::set_parent);
 
 
     class_<ydk::EntityPath>(types, "EntityPath")
-        .def(init<string, vector<pair<std::string, ydk::LeafData> > >())
+        .def(init<const string &, vector<pair<std::string, ydk::LeafData> > &>())
         .def_readonly("path", &ydk::EntityPath::path, return_value_policy::reference)
         .def_readonly("value_paths", &ydk::EntityPath::value_paths, return_value_policy::reference)
         .def(self == self);
@@ -549,6 +601,8 @@ PYBIND11_PLUGIN(ydk_)
         .def("set", (void (ydk::YLeaf::*)(ydk::Enum::YLeaf)) &ydk::YLeaf::set, arg("value"))
         .def("set", (void (ydk::YLeaf::*)(ydk::Decimal64)) &ydk::YLeaf::set, arg("value"))
         .def_readonly("is_set", &ydk::YLeaf::is_set, return_value_policy::reference)
+        .def_readonly("name", &ydk::YLeaf::name, return_value_policy::reference)
+        .def_readonly("type", &ydk::YLeaf::type, return_value_policy::reference)
         .def_readwrite("yfilter", &ydk::YLeaf::yfilter)
         .def_readwrite("value_namespace", &ydk::YLeaf::value_namespace)
         .def_readwrite("value_namespace_prefix", &ydk::YLeaf::value_namespace_prefix);
@@ -581,12 +635,14 @@ PYBIND11_PLUGIN(ydk_)
                         {
                             l.clear();
                         })
+        .def_readonly("name", &ydk::YLeafList::name, return_value_policy::reference)
+        .def_readonly("type", &ydk::YLeafList::type, return_value_policy::reference)
         .def_readwrite("yfilter", &ydk::YLeafList::yfilter);
 
     class_<ydk::NetconfServiceProvider, ydk::ServiceProvider>(providers, "NetconfServiceProvider")
         .def("__init__",
-            [](ydk::NetconfServiceProvider &nc_provider, ydk::path::Repository& repo, const string& address, const string& username, const string& password, int port, const string& protocol, bool on_demand) {
-                    new(&nc_provider) ydk::NetconfServiceProvider(repo, address, username, password, port, protocol, on_demand);
+            [](ydk::NetconfServiceProvider &nc_provider, ydk::path::Repository& repo, const string& address, const string& username, const string& password, int port, const string& protocol, bool on_demand, int timeout) {
+                    new(&nc_provider) ydk::NetconfServiceProvider(repo, address, username, password, port, protocol, on_demand, timeout);
             },
             arg("repo"),
             arg("address"),
@@ -594,10 +650,23 @@ PYBIND11_PLUGIN(ydk_)
             arg("password"),
             arg("port")=830,
             arg("protocol")=string("ssh"),
-            arg("on_demand")=true)
+            arg("on_demand")=true,
+            arg("timeout")=-1)
         .def("__init__",
-            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, int port, const string& protocol, bool on_demand, bool common_cache) {
-                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, port, protocol, on_demand, common_cache);
+            [](ydk::NetconfServiceProvider &nc_provider, ydk::path::Repository& repo, const string& address, const string& username, const string& password, void* port, const string& protocol, bool on_demand, int timeout) {
+                    new(&nc_provider) ydk::NetconfServiceProvider(repo, address, username, password, 830, protocol, on_demand, timeout);
+            },
+            arg("repo"),
+            arg("address"),
+            arg("username"),
+            arg("password"),
+            arg("port")=nullptr,
+            arg("protocol")=string("ssh"),
+            arg("on_demand")=true,
+            arg("timeout")=-1)
+        .def("__init__",
+            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, int port, const string& protocol, bool on_demand, bool common_cache, int timeout) {
+                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, port, protocol, on_demand, common_cache, timeout);
             },
             arg("address"),
             arg("username"),
@@ -605,10 +674,11 @@ PYBIND11_PLUGIN(ydk_)
             arg("port")=830,
             arg("protocol")=string("ssh"),
             arg("on_demand")=true,
-            arg("common_cache")=false)
+            arg("common_cache")=false,
+            arg("timeout")=-1)
         .def("__init__",
-            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, void* port, const string& protocol, bool on_demand, bool common_cache) {
-                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, 830, protocol, on_demand, common_cache);
+            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, void* port, const string& protocol, bool on_demand, bool common_cache, int timeout) {
+                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, 830, protocol, on_demand, common_cache, timeout);
             },
             arg("address"),
             arg("username"),
@@ -616,36 +686,32 @@ PYBIND11_PLUGIN(ydk_)
             arg("port")=nullptr,
             arg("protocol")=string("ssh"),
             arg("on_demand")=true,
-            arg("common_cache")=false)
+            arg("common_cache")=false,
+            arg("timeout")=-1)
         .def("__init__",
-            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, int port, bool on_demand, bool common_cache) {
-                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, port, "ssh", on_demand, common_cache);
+            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, int port, bool on_demand, bool common_cache, int timeout) {
+                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, port, "ssh", on_demand, common_cache, timeout);
             },
             arg("address"),
             arg("username"),
             arg("password"),
             arg("port")=830,
             arg("on_demand")=true,
-            arg("common_cache")=false)
+            arg("common_cache")=false,
+            arg("timeout")=-1)
         .def("__init__",
-            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, bool on_demand, bool common_cache) {
-                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, 830, "ssh", on_demand, common_cache);
+            [](ydk::NetconfServiceProvider &nc_provider, const string& address, const string& username, const string& password, bool on_demand, bool common_cache, int timeout) {
+                    new(&nc_provider) ydk::NetconfServiceProvider(address, username, password, 830, "ssh", on_demand, common_cache, timeout);
             },
             arg("address"),
             arg("username"),
             arg("password"),
             arg("on_demand")=true,
-            arg("common_cache")=false)
+            arg("common_cache")=false,
+            arg("timeout")=-1)
         .def("get_encoding", &ydk::NetconfServiceProvider::get_encoding, return_value_policy::reference)
         .def("get_session", &ydk::NetconfServiceProvider::get_session, return_value_policy::reference)
         .def("get_capabilities", &ydk::NetconfServiceProvider::get_capabilities, return_value_policy::reference);
-
-    class_<ydk::gNMIServiceProvider, ydk::ServiceProvider>(providers, "gNMIServiceProvider")
-        .def(init<ydk::path::Repository&, string>(), arg("repo"), arg("address"))
-        .def(init<string>(), arg("address"))
-        .def("get_encoding", &ydk::gNMIServiceProvider::get_encoding, return_value_policy::reference)
-        .def("get_session", &ydk::gNMIServiceProvider::get_session, return_value_policy::reference)
-        .def("get_capabilities", &ydk::gNMIServiceProvider::get_capabilities, return_value_policy::reference);
 
     class_<ydk::RestconfServiceProvider, ydk::ServiceProvider>(providers, "RestconfServiceProvider")
         .def(init<ydk::path::Repository&, string, string, string, int, ydk::EncodingFormat>(),
@@ -658,6 +724,12 @@ PYBIND11_PLUGIN(ydk_)
             arg("repo"), arg("address"), arg("username"), arg("password"), arg("port"), arg("encoding"))
         .def("get_node_provider", &ydk::OpenDaylightServiceProvider::get_node_provider, return_value_policy::reference)
         .def("get_node_ids", &ydk::OpenDaylightServiceProvider::get_node_ids, return_value_policy::reference);
+
+    class_<ydk::gNMIServiceProvider, ydk::ServiceProvider>(providers, "gNMIServiceProvider")
+        .def(init<ydk::path::Repository&, string, bool>(), arg("repo"), arg("address"), arg("is_secure"))
+        .def("get_encoding", &ydk::gNMIServiceProvider::get_encoding, return_value_policy::reference)
+        .def("get_session", &ydk::gNMIServiceProvider::get_session, return_value_policy::reference)
+        .def("get_capabilities", &ydk::gNMIServiceProvider::get_capabilities, return_value_policy::reference);
 
     class_<ydk::CrudService>(services, "CRUDService")
         .def(init<>())
@@ -734,12 +806,16 @@ PYBIND11_PLUGIN(ydk_)
             arg("source_config"),
             return_value_policy::reference);
 
+    class_<ydk::gNMIService>(services, "gNMIService")
+	    .def(init<>())
+	    .def("get", &ydk::gNMIService::get, arg("provider"), arg("filter"), return_value_policy::reference)
+    	.def("set", &ydk::gNMIService::set, arg("provider"), arg("entity"), arg("operation"), return_value_policy::reference);
+
     class_<ydk::XmlSubtreeCodec>(entity_utils, "XmlSubtreeCodec")
         .def(init<>())
         .def("encode", &ydk::XmlSubtreeCodec::encode, return_value_policy::reference)
         .def("decode", &ydk::XmlSubtreeCodec::decode);
 
-    entity_utils.def("get_relative_entity_path", &ydk::get_relative_entity_path);
     entity_utils.def("get_entity_from_data_node", &ydk::get_entity_from_data_node);
     #if defined(PYBIND11_OVERLOAD_CAST)
     entity_utils.def("get_data_node_from_entity", overload_cast<ydk::Entity&, ydk::path::RootSchemaNode&>(&ydk::get_data_node_from_entity), return_value_policy::reference);
@@ -751,5 +827,5 @@ PYBIND11_PLUGIN(ydk_)
 
     setup_logging();
 
-    return ydk.ptr();
 };
+

@@ -28,7 +28,7 @@ import os, sys, shutil
 import tarfile
 import tempfile
 
-from .common import YdkGenException, iscppkeyword, ispythonkeyword
+from .common import YdkGenException, iscppkeyword, ispythonkeyword, isgokeyword
 from ydkgen.builder import (ApiModelBuilder, GroupingClassApiModelBuilder,
                             PyangModelBuilder, SubModuleBuilder)
 from .resolver import bundle_resolver, bundle_translator
@@ -56,13 +56,12 @@ class YdkGenerator(object):
             package_type (str): Package type for generated APIs.
                             Valid options for bundle approach are: 'core',
                                                                    'packages'.
-            sort_clazz (bool): Option to sort generated classes at same leve.
 
         Raises:
             YdkGenException: If an error has occurred
     """
 
-    def __init__(self, output_dir, ydk_root, groupings_as_class, generate_tests, language, package_type, sort_clazz=False):
+    def __init__(self, output_dir, ydk_root, groupings_as_class, generate_tests, language, package_type, one_class_per_module):
 
         _check_generator_args(output_dir, ydk_root, language, package_type)
 
@@ -72,11 +71,13 @@ class YdkGenerator(object):
         self.language = language
         self.package_type = package_type
         self.generate_tests = generate_tests
-        self.sort_clazz = sort_clazz
+        self.one_class_per_module = one_class_per_module
         if self.language == 'cpp':
             self.iskeyword = iscppkeyword
-        else:
+        elif self.language == 'python':
             self.iskeyword = ispythonkeyword
+        elif self.language == 'go':
+            self.iskeyword = isgokeyword
 
     def generate(self, description_file):
         """ Generate ydk bundle packages or ydk core library.
@@ -115,7 +116,7 @@ class YdkGenerator(object):
         for x in all_bundles:
             assert isinstance(x, bundle_resolver.Bundle)
 
-        packages = self._get_packages(curr_bundle.resolved_models_dir)
+        packages = self._get_packages(curr_bundle)
         if len(packages) == 0:
             raise YdkGenException('No YANG models were found. Please check your JSON profile file to make sure it is valid')
 
@@ -127,8 +128,8 @@ class YdkGenerator(object):
         generated_files = self._print_packages(packages, gen_api_root, curr_bundle)
 
         if self.language == 'cpp':
-            _modify_cpp_cmake(gen_api_root, curr_bundle.name, curr_bundle.str_version,
-                              generated_files[0], generated_files[1], yang_models)
+            _modify_cpp_cmake(gen_api_root, curr_bundle.name, curr_bundle.str_version, 
+                    curr_bundle.str_core_version, generated_files[0], generated_files[1], yang_models)
 
         os.remove(tmp_file)
 
@@ -145,7 +146,7 @@ class YdkGenerator(object):
 
         return gen_api_root
 
-    def _get_packages(self, resolved_model_dir):
+    def _get_packages(self, bundle):
         """ Return packages for resolved YANG modules. Each module will be
             represented as an api package.
 
@@ -156,16 +157,17 @@ class YdkGenerator(object):
             packages (List[.api_model.Package]): List of api packages.
         """
 
+        resolved_model_dir = bundle.resolved_models_dir
         pyang_builder = PyangModelBuilder(resolved_model_dir)
         modules = pyang_builder.parse_and_return_modules()
 
         # build api model packages
         if not self.groupings_as_class:
-            packages = ApiModelBuilder(self.iskeyword, self.language).generate(modules)
+            packages = ApiModelBuilder(self.iskeyword, self.language, bundle.name).generate(modules)
         else:
-            packages = GroupingClassApiModelBuilder(self.iskeyword, self.language).generate(modules)
+            packages = GroupingClassApiModelBuilder(self.iskeyword, self.language, bundle.name).generate(modules)
         packages.extend(
-            SubModuleBuilder().generate(pyang_builder.get_submodules(), self.iskeyword))
+            SubModuleBuilder().generate(pyang_builder.get_submodules(), self.iskeyword, self.language, bundle.name))
 
         return packages
 
@@ -180,7 +182,7 @@ class YdkGenerator(object):
         global classes_per_source_file
         factory = printer_factory.PrinterFactory()
         bundle_packages = _filter_bundle_from_packages(pkgs, bundle)
-        ydk_printer = factory.get_printer(self.language)(output_dir, bundle, self.generate_tests, self.sort_clazz)
+        ydk_printer = factory.get_printer(self.language)(output_dir, bundle, self.generate_tests, self.one_class_per_module)
         generated_files = ydk_printer.emit(bundle_packages, classes_per_source_file)
         return generated_files
 
@@ -224,6 +226,7 @@ class YdkGenerator(object):
             _modify_python_setup(gen_api_root,
                                  'ydk-models-%s' % bundle.name,
                                  bundle.str_version,
+                                 bundle.str_core_version,
                                  bundle.dependencies,
                                  bundle.description,
                                  bundle.long_description)
@@ -231,7 +234,8 @@ class YdkGenerator(object):
 
         # write init file for bundle models directory.
         bundle_model_dir = os.path.join(gen_api_root, 'ydk')
-        os.mkdir(bundle_model_dir)
+        if not os.path.exists(bundle_model_dir):
+            os.mkdir(bundle_model_dir)
 
         return gen_api_root
 
@@ -251,6 +255,9 @@ class YdkGenerator(object):
                 target_dir = os.path.join(target_dir, package_type)
             elif package_type == 'core':
                 target_dir = os.path.join(target_dir, 'core')
+        elif self.language == 'go':
+            target_dir = os.path.join(target_dir, package_type)
+
         shutil.rmtree(gen_api_root)
         logger.debug('Copying %s to %s' % (target_dir, gen_api_root))
         dir_util.copy_tree(target_dir, gen_api_root)
@@ -324,7 +331,7 @@ def _set_original_bundle_name_for_packages(bundles, packages, curr_bundle):
                     pkg.bundle_name = bundle.name
 
 
-def _modify_python_setup(gen_api_root, package_name, version, dependencies, description, long_description):
+def _modify_python_setup(gen_api_root, package_name, version, core_version, dependencies, description, long_description):
     """ Modify setup.py template for python packages. Replace package name
         and version number in setup.py located in <gen_api_root>/setup.py.
         If dependencies are specified, $DEPENDENCY$ in setup.py will be replaced.
@@ -334,6 +341,7 @@ def _modify_python_setup(gen_api_root, package_name, version, dependencies, desc
         gen_api_root (str): Root directory for generated APIs.
         package_name (str): Package name for generated APIs.
         version (str): Package version for generated APIs.
+        core_version (str): YDK core library version for generated APIs.
         dependencies (list): bundle dependencies
         description (str): description for bundle package
         long_description (str): long description for bundle package
@@ -341,6 +349,7 @@ def _modify_python_setup(gen_api_root, package_name, version, dependencies, desc
     setup_file = os.path.join(gen_api_root, 'setup.py')
     replaced_package = False
     replaced_version = False
+    replaced_core_version = False
     replaced_dependencies = False
     replaced_description = False
     replaced_long_description = False
@@ -351,6 +360,9 @@ def _modify_python_setup(gen_api_root, package_name, version, dependencies, desc
         elif not replaced_version and "$VERSION$" in line:
             replaced_version = True
             print(line.replace("$VERSION$", version), end='')
+        elif not replaced_core_version and "$CORE_VERSION$" in line:
+            replaced_core_version = True
+            print(line.replace("$CORE_VERSION$", core_version), end='')
         elif not replaced_dependencies and "$DEPENDENCY$" in line:
             replaced_dependencies = True
             if dependencies:
@@ -378,13 +390,14 @@ def _modify_python_manifest(gen_api_root, bundle_name):
             print(line, end='')
 
 
-def _modify_cpp_cmake(gen_api_root, bundle_name, version, source_files, header_files, model_names):
+def _modify_cpp_cmake(gen_api_root, bundle_name, version, core_version, source_files, header_files, model_names):
     """ Modify CMakeLists.txt template for cpp libraries.
 
     Args:
         gen_api_root (str): Root directory for generated APIs.
         bundle_name (str): Package name for generated APIs.
         version (str): Package version for generated APIs.
+        core_version (str): YDK core library version for generated APIs.
     """
     cmake_file = os.path.join(gen_api_root, 'CMakeLists.txt')
 
@@ -403,6 +416,8 @@ def _modify_cpp_cmake(gen_api_root, bundle_name, version, source_files, header_f
                 line = line.replace("@HEADER_FILES@", header_file_names)
             elif "@VERSION@" in line:
                 line = line.replace("@VERSION@", version)
+            elif "@CORE_VERSION@" in line:
+                line = line.replace("@CORE_VERSION@", core_version)
             elif "@YANG_FILES@" in line:
                 line = line.replace("@YANG_FILES@", model_file_names)
             print(line, end='')
@@ -427,7 +442,7 @@ def _check_generator_args(output_dir, ydk_root, language, package_type):
     Raises:
         YdkGenException: If invalid arguments are passed in.
     """
-    if language != 'cpp' and language != 'python':
+    if language not in ('cpp', 'go', 'python'):
         raise YdkGenException('Language {0} not supported'.format(language))
 
     if output_dir is None or len(output_dir) == 0:

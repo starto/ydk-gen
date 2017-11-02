@@ -35,14 +35,18 @@
 #include <vector>
 
 #include "errors.hpp"
-#include "gnmi_client.hpp"
 #include "types.hpp"
 #include "validation_service.hpp"
 
+namespace grpc {
+class ChannelCredentials;
+class ChannelArguments;
+}
+
 namespace ydk {
 
-class NetconfClient;
 class gNMIClient;
+class NetconfClient;
 class RestconfClient;
 
 namespace path {
@@ -938,7 +942,7 @@ public:
     /// @return pointer to the RootSchemaNode or nullptr if one could not be created.
     ///
     std::shared_ptr<RootSchemaNode> create_root_schema(const std::vector<Capability> & capabilities);
-    std::shared_ptr<RootSchemaNode> create_root_schema(const std::vector<std::unordered_map<std::string, Capability>>& lookup_tables,
+    std::shared_ptr<RootSchemaNode> create_root_schema(const std::unordered_map<std::string, Capability>& lookup_table,
                                                        const std::vector<Capability> &caps_to_load);
 
     ///
@@ -973,7 +977,6 @@ public:
     std::string path;
  private:
     std::vector<ModelProvider*> model_providers;
-    bool using_temp_directory;
 
     // class Repository is the resource manager class for RepositoryPtr,
     // which is shared by all DataNode/SchemaNode/RootDataNode/RootSchemaNode
@@ -1014,7 +1017,8 @@ public:
                    const std::string& password,
                    int port = 830,
                    const std::string& protocol = "ssh",
-                   bool on_demand = true);
+                   bool on_demand = true,
+                   int timeout = -1);
 
     NetconfSession(const std::string& address,
                    const std::string& username,
@@ -1022,7 +1026,8 @@ public:
                    int port = 830,
                    const std::string& protocol = "ssh",
                    bool on_demand = true,
-                   bool common_cache = false);
+                   bool common_cache = false,
+                   int timeout = -1);
 
     virtual ~NetconfSession();
 
@@ -1040,50 +1045,12 @@ private:
                            const std::string& username,
                            const std::string& password,
                            int port,
-                           const std::string& protocol);
+                           const std::string& protocol,
+                           int timeout);
     std::string execute_payload(const std::string & payload) const;
 private:
     std::unique_ptr<NetconfClient> client;
     std::unique_ptr<ModelProvider> model_provider;
-    std::shared_ptr<RootSchemaNode> root_schema;
-    std::vector<std::string> server_capabilities;
-};
-
-class gNMISession : public Session {
-public:
-    typedef struct SecureChannelArguments
-    {
-    std::shared_ptr<grpc::ChannelCredentials> channel_creds;
-    grpc::ChannelArguments args;        
-    } SecureChannelArguments;
-    gNMISession(Repository & repo,
-                   const std::string& address, bool is_secure);
-
-    gNMISession(Repository & repo,
-                   const std::string& address);
-
-    gNMISession(const std::string& address, bool is_secure);
-
-    gNMISession(const std::string& address);
-
-    virtual ~gNMISession();
-
-    virtual RootSchemaNode& get_root_schema() const;
-    virtual std::shared_ptr<DataNode> invoke(Rpc& rpc) const;
-    virtual std::vector<std::string> get_capabilities() const;
-    virtual EncodingFormat get_encoding() const;
-    virtual std::string execute_payload(const std::string & payload, std::string operation) const;
-    virtual std::shared_ptr<path::DataNode> handle_read_reply(std::string reply, path::RootSchemaNode & root_schema) const;
-
-private:
-    void initialize(Repository& repo, const std::string& address, bool is_secure);
-    std::shared_ptr<path::DataNode> handle_edit(path::Rpc& ydk_rpc, std::string operation) const;
-    std::shared_ptr<path::DataNode> handle_read(path::Rpc& rpc, std::string operation) const;
-    void print_root_paths(ydk::path::RootSchemaNode& rsn) const;
-    void print_paths(ydk::path::SchemaNode& sn) const;
-
-private:
-    std::unique_ptr<gNMIClient> client;
     std::shared_ptr<RootSchemaNode> root_schema;
     std::vector<std::string> server_capabilities;
 };
@@ -1127,6 +1094,46 @@ private:
         std::string state_url_root;
 };
 
+
+class gNMISession : public Session {
+public:
+    typedef struct SecureChannelArguments
+    {
+        std::shared_ptr<grpc::ChannelCredentials> channel_creds;
+        std::shared_ptr<grpc::ChannelArguments> args;
+    } SecureChannelArguments;
+
+    gNMISession(Repository & repo,
+                   const std::string& address, bool is_secure);
+
+    gNMISession(Repository & repo,
+                   const std::string& address);
+
+    gNMISession(const std::string& address, bool is_secure);
+
+    gNMISession(const std::string& address);
+
+    virtual ~gNMISession();
+
+    virtual RootSchemaNode& get_root_schema() const;
+    virtual std::shared_ptr<DataNode> invoke(Rpc& rpc) const;
+    virtual std::vector<std::string> get_capabilities() const;
+    virtual EncodingFormat get_encoding() const;
+    virtual std::string execute_payload(const std::string & payload, const std::string & operation) const;
+    virtual std::shared_ptr<path::DataNode> handle_read_reply(std::string reply, path::RootSchemaNode & root_schema) const;
+
+private:
+    void initialize(Repository& repo, const std::string& address, bool is_secure);
+    std::shared_ptr<path::DataNode> handle_edit(path::Rpc& ydk_rpc, const std::string & operation) const;
+    std::shared_ptr<path::DataNode> handle_read(path::Rpc& rpc, const std::string & operation) const;
+    void print_root_paths(ydk::path::RootSchemaNode& rsn) const;
+    void print_paths(ydk::path::SchemaNode& sn) const;
+
+private:
+    std::unique_ptr<gNMIClient> client;
+    std::shared_ptr<RootSchemaNode> root_schema;
+    std::vector<std::string> server_capabilities;
+};
 
 ///
 ///

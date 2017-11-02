@@ -24,6 +24,7 @@
 
 using namespace ydk;
 using namespace std;
+using namespace openconfig;
 
 int main(int argc, char* argv[])
 {
@@ -45,7 +46,7 @@ int main(int argc, char* argv[])
     NetconfServiceProvider provider{host, username, password, port};
     CrudService crud{};
 
-    auto bgp = make_unique<openconfig::openconfig_bgp::Bgp>();
+    auto bgp = make_unique<openconfig_bgp::Bgp>();
     try
     {
         bool reply = crud.delete_(provider, *bgp);

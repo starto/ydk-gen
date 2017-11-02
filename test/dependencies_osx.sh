@@ -29,22 +29,20 @@ function print_msg {
 function install_dependencies {
     print_msg "install_dependencies"
 
-    brew install autoconf \
-                 automake \
-                 curl \
+    brew install curl \
                  doxygen \
-                 gflags \
-                 lcov \
                  libssh \
-                 libtool \
                  pcre \
-                 protobuf \
-                 shtool \
                  wget \
-                 xml2 
+                 xml2 \
+                 lcov
 
     brew install libssh
     brew link libssh
+    wget https://www.python.org/ftp/python/3.6.3/python-3.6.3-macosx10.6.pkg
+    sudo installer -pkg python-3.6.3-macosx10.6.pkg  -target /
+    wget https://www.python.org/ftp/python/2.7.14/python-2.7.14-macosx10.6.pkg
+    sudo installer -pkg python-2.7.14-macosx10.6.pkg  -target /
 }
 
 function install_confd {
@@ -72,6 +70,7 @@ function install_protobuf {
     make
     make check
     sudo make install
+    sudo update_dyld_shared_cache
 }
 
 function install_grpc {

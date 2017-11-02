@@ -24,14 +24,15 @@ from pyang import statements
 
 from ._types_extractor import TypesExtractor
 from ydkgen.common import YdkGenException
-from ydkgen.api_model import AnyXml, Enum, Class, Bits, Package, Property, Deviation
+from ydkgen.api_model import AnyXml, Enum, Class, Bits, Package, Property, Deviation, snake_case
 
 
 class ApiModelBuilder(object):
-    def __init__(self, iskeyword, language):
+    def __init__(self, iskeyword, language, bundle_name):
         self.types_extractor = TypesExtractor()
         self.iskeyword = iskeyword
         self.language = language
+        self.bundle_name = bundle_name
 
     def generate(self, modules):
         """
@@ -55,12 +56,24 @@ class ApiModelBuilder(object):
             package = Package(self.iskeyword)
             module.i_package = package
             package.stmt = module
+
+            broken_name = package.name.split('_')
+            if broken_name[0] == self.bundle_name and self.language == 'go':
+                package.bundle_name = broken_name[0]
+                broken_name = broken_name[1:]
+                package.name = '_'.join(broken_name)
             deviation_packages.append(package)
 
         for module in only_modules:
             package = Package(self.iskeyword)
             module.i_package = package
             package.stmt = module
+
+            broken_name = package.name.split('_')
+            if broken_name[0] == self.bundle_name and self.language == 'go':
+                package.bundle_name = broken_name[0]
+                broken_name = broken_name[1:]
+                package.name = '_'.join(broken_name)
             self._create_expanded_api_model(module, package, deviation_packages)
             packages.append(package)
 
@@ -409,6 +422,12 @@ class GroupingClassApiModelBuilder(ApiModelBuilder):
             p = Package(self.iskeyword)
             m.i_package = p
             p.stmt = m
+
+            broken_name = p.name.split('_')
+            if broken_name[0] == self.bundle_name and self.language == 'go':
+                p.bundle_name = broken_name[0]
+                broken_name = broken_name[1:]
+                p.name = '_'.join(broken_name)
             self._create_grouping_class_api_model(m, p)
             packages.append(p)
 
@@ -599,13 +618,20 @@ class GroupingClassApiModelBuilder(ApiModelBuilder):
 
 
 class SubModuleBuilder(object):
-    def generate(self, submodules, iskeyword):
+    def generate(self, submodules, iskeyword, language, bundle_name):
         packages = []
         for sub in submodules:
             package = Package(iskeyword)
             sub.i_package = package
             package.stmt = sub
+
+            broken_name = package.name.split('_')
+            if broken_name[0] == bundle_name and language == 'go':
+                package.bundle_name = broken_name[0]
+                broken_name = broken_name[1:]
+                package.name = '_'.join(broken_name)
             packages.append(package)
+
         return packages
 
 
@@ -613,19 +639,13 @@ def name_matches_ancestor(name, parent_element):
     if parent_element is None or isinstance(parent_element, Package):
         return False
 
-    if name == parent_element.name:
+    if hasattr(parent_element, 'name') and name == parent_element.name:
         return True
 
     if not hasattr(parent_element, 'owner'):
         return False
 
     return name_matches_ancestor(name, parent_element.owner)
-
-
-def snake_case(input_text):
-    s = input_text.replace('-', '_')
-    s = s.replace('.', '_')
-    return s.lower()
 
 
 def disambiguate_class_name_from_ancestors_and_siblings(language, clazz, parent_element):

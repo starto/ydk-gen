@@ -14,8 +14,8 @@
  limitations under the License.
  ------------------------------------------------------------------*/
 #include <string.h>
-#include "../core/src/gnmi_provider.hpp"
-#include "../core/src/errors.hpp"
+#include <ydk/gnmi_provider.hpp>
+#include <ydk/errors.hpp>
 #include <iostream>
 #include "config.hpp"
 #include "catch.hpp"

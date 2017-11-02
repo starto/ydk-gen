@@ -21,8 +21,6 @@
  Translation process converts the YANG model to classes defined in this module.
 """
 from __future__ import absolute_import
-
-
 from pyang.types import UnionTypeSpec
 
 
@@ -61,6 +59,7 @@ class Element(object):
 class Deviation(Element):
     def __init__(self, iskeyword):
         Element.__init__(self)
+        self.name = None
         self._stmt = None
         self.d_type = None
         self.d_target = None
@@ -73,6 +72,7 @@ class Deviation(Element):
     @stmt.setter
     def stmt(self, stmt):
         self._stmt = stmt
+        self.name = stmt.arg
 
     def qn(self):
         names = []
@@ -223,6 +223,39 @@ class NamedElement(Element):
             names.append(element.name)
             element = element.owner
         return pkg.bundle_name + '::' + '::'.join(reversed(names))
+
+    def go_name(self, case = 'UpperCamel'):
+        if self.stmt is None:
+            raise Exception('element is not yet defined')
+
+        if isinstance(self, Enum):
+            stmt = self.stmt.parent
+        else:
+            stmt = self.stmt
+
+        name = camel_case(stmt.arg)
+
+        if case == 'UpperCamel':
+            return name
+        elif case == 'lowerCamel':
+            return '%s%s' % (name[0].lower(), name[1:])
+        else:
+            supported = 'Currently Supporting: UpperCamel, lowerCamel'
+            raise Exception('{0} case is not supported\n{1}'.format(case, supported))
+
+    def qualified_go_name(self):
+        ''' get the Go qualified name (sans package name) '''
+        if self.stmt.keyword == 'identity':
+            return camel_snake(self.stmt.arg)
+
+        names = []
+        element = self
+        while element is not None and not isinstance(element, Package):
+            if isinstance(element, Deviation):
+                element = element.owner
+            names.append(element.go_name())
+            element = element.owner
+        return '_'.join(reversed(names))
 
 
 class Package(NamedElement):
@@ -774,7 +807,6 @@ class Enum(DataType):
             literal.stmt = enum_stmt
             self.literals.append(literal)
 
-
 class EnumLiteral(NamedElement):
 
     """ Represents an enumeration literal. """
@@ -843,7 +875,6 @@ def get_top_pkg(pkg):
 
     return pkg
 
-
 def get_properties(owned_elements):
     """ get all properties from the owned_elements. """
     props = []
@@ -855,10 +886,9 @@ def get_properties(owned_elements):
     props.extend(key_props)
 
     non_key_props = [p for p in all_props if not p.is_key()]
-    props.extend(sorted(non_key_props, key=lambda p: p.name))
+    props.extend(non_key_props)
 
     return props
-
 
 def _modify_nested_container_with_same_name(named_element):
     if named_element.owner.name.rstrip('_') == named_element.name:
@@ -866,21 +896,25 @@ def _modify_nested_container_with_same_name(named_element):
     else:
         return named_element.name
 
-
-
 def snake_case(input_text):
-    snake_case = input_text.replace('-', '_')
-    snake_case = snake_case.replace('.', '_')
-    return snake_case.lower()
+    s = input_text.replace('-', '_')
+    s = s.replace('.', '_')
+    return s.lower()
 
-
+# capitalized input will not affected
 def camel_case(input_text):
     def _title(s):
         if len(s) > 0  and s.startswith(s[0].upper()):
             return s
         return s.title()
-    return ''.join([_title(word) for word in input_text.split('-')])
+    result = ''.join([_title(word) for word in input_text.split('-')])
+    result = ''.join([_title(word) for word in result.split('_')])
+    if input_text.startswith('_'):
+        result = '_'+result;
+    return result
 
+def camel_snake(input_text):
+    return '_'.join([word.title() for word in input_text.split('-')])
 
 def escape_name(name):
     name = name.replace('+', '__PLUS__')

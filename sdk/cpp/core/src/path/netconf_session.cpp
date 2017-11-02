@@ -80,11 +80,12 @@ NetconfSession::NetconfSession(path::Repository & repo,
                                const string& password,
                                int port,
                                const string& protocol,
-                               bool on_demand)
+                               bool on_demand,
+                               int timeout)
 {
-    initialize_client(address, username, password, port, protocol);
+    initialize_client(address, username, password, port, protocol, timeout);
     initialize(repo, on_demand);
-    YLOG_INFO("Connected to {} on port {} using {}", address, port, protocol);
+    YLOG_INFO("Connected to {} on port {} using {} with timeout of {}", address, port, protocol, timeout);
 }
 
 NetconfSession::NetconfSession(const string& address,
@@ -93,24 +94,26 @@ NetconfSession::NetconfSession(const string& address,
                                int port,
                                const string& protocol,
                                bool on_demand,
-                               bool common_cache)
+                               bool common_cache,
+                               int timeout)
 {
-    initialize_client(address, username, password, port, protocol);
+    initialize_client(address, username, password, port, protocol, timeout);
     auto caching_option = common_cache ? path::ModelCachingOption::COMMON : path::ModelCachingOption::PER_DEVICE;
     path::Repository repo(caching_option);
     initialize(repo, on_demand);
-    YLOG_INFO("Connected to {} on port {} using {}", address, port, protocol);
+    YLOG_INFO("Connected to {} on port {} using {} with timeout of {}", address, port, protocol, timeout);
 }
 
 void NetconfSession::initialize_client(const string& address,
                                        const string& username,
                                        const string& password,
                                        int port,
-                                       const string& protocol)
+                                       const string& protocol,
+                                       int timeout)
 {
     if (protocol.compare(PROTOCOL_SSH) == 0)
     {
-        client = make_unique<NetconfSSHClient>(username, password, address, port);
+        client = make_unique<NetconfSSHClient>(username, password, address, port, timeout);
     }
     else if (protocol.compare(PROTOCOL_TCP) == 0)
     {
@@ -138,7 +141,7 @@ void NetconfSession::initialize(path::Repository & repo, bool on_demand)
         }
     }
 
-    auto lookup_tables = capabilities_parser.get_lookup_tables(server_capabilities);
+    auto lookup_table = capabilities_parser.get_lookup_table(server_capabilities);
 
     std::vector<path::Capability> yang_caps;
     std::vector<std::string> empty_caps;
@@ -148,7 +151,7 @@ void NetconfSession::initialize(path::Repository & repo, bool on_demand)
     else
         yang_caps = capabilities_parser.parse(server_capabilities);
 
-    root_schema = repo.create_root_schema(lookup_tables, yang_caps);
+    root_schema = repo.create_root_schema(lookup_table, yang_caps);
 
     if(root_schema.get() == nullptr)
     {

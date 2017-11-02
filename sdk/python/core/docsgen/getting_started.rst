@@ -19,28 +19,30 @@ Ubuntu (Debian-based)
 .. code-block:: sh
 
    $ sudo apt-get install gdebi-core
-   $ wget https://devhub.cisco.com/artifactory/debian-ydk/0.6.0/libydk_0.6.0-1_amd64.deb
-   $ sudo gdebi libydk_0.6.0-1_amd64.deb
+   $ wget https://devhub.cisco.com/artifactory/debian-ydk/0.6.2/libydk_0.6.2-1_amd64.deb
+   $ sudo gdebi libydk_0.6.2-1_amd64.deb
 
 Centos (Fedora-based)
 
 .. code-block:: sh
 
-   $ sudo yum install epel-release
-   $ sudo yum install https://devhub.cisco.com/artifactory/rpm-ydk/0.6.0/libydk-0.6.0-1.x86_64.rpm
+   $ sudo yum install epel-release libssh-devel gcc-c++ python-devel
+   $ sudo yum install https://devhub.cisco.com/artifactory/rpm-ydk/0.6.2/libydk-0.6.2-1.x86_64.rpm
    $ sudo ln –s /usr/bin/cmake3 /usr/bin/cmake && export PATH=/usr/bin/cmake:$PATH
 
 macOS
 -----
-It is required to install Xcode command line tools, `homebrew <http://brew.sh>`_ and the following homebrew packages on your system before installing YDK-Py:
+You can download the latest python package from here. **Note:** Please do not use the homebrew version of python as it causes issues with installing ydk packages. Please execute ``brew rm python python3`` to remove any homebrew python packages.
+
+It is required to install Xcode command line tools, `homebrew <http://brew.sh>`_ and the following homebrew packages on your system before installing YDK-Py.
 
 .. code-block:: sh
 
    $ xcode-select --install
    $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-   $ brew install python pkg-config libssh xml2 curl pcre cmake
-   $ curl -O https://devhub.cisco.com/artifactory/osx-ydk/0.6.0/libydk_0.6.0_Darwin.pkg
-   $ sudo installer -pkg libydk_0.6.0_Darwin.pkg -target /
+   $ brew install pkg-config libssh libxml2 curl pcre cmake
+   $ curl -O https://devhub.cisco.com/artifactory/osx-ydk/0.6.2/libydk-0.6.2-Darwin.pkg
+   $ sudo installer -pkg libydk-0.6.2-Darwin.pkg -target /
 
 Windows
 -------
@@ -60,11 +62,12 @@ How to install
 ==============
 Quick Install
 -------------
-You can install the latest model packages from the Python package index.  Note that, in some systems, you need to install the new package as root.  You get a fully operational YDK environment by installing the ``cisco-ios-xr`` bundle which automatically installs all other YDK-related packages (``ydk``, ``cisco-ios-xr``, ``openconfig`` and ``ietf`` packages):
+You can install the latest model packages from the Python package index.  Note that, in some systems, you need to install the new package as root.  You get a fully operational YDK environment by installing the ``cisco-ios-xr`` and/or ``cisco-ios-xe`` bundle(s) (depending on whether you're developing for an IOS XR or IOS XE platform) which automatically installs all other YDK-related packages (``ydk``, ``openconfig`` and ``ietf`` packages):
 
 .. code-block:: sh
 
     $ pip install ydk-models-cisco-ios-xr
+    $ pip install ydk-models-cisco-ios-xe
 
 Alternatively, you can perform a partial installation.  If you only want to install the ``openconfig`` bundle and its dependencies (``ydk`` and ``ietf`` packages), execute:
 

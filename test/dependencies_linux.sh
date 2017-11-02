@@ -32,19 +32,13 @@ function install_dependencies {
     wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
 
     sudo apt-get update > /dev/null
-    sudo apt-get install -y autoconf \
-                            bison \
-                            build-essential \
-                            clang \
+    sudo apt-get install -y bison \
                             curl \
                             doxygen \
                             flex \
                             git \
-                            libc++-dev \
                             libcmocka0 \
                             libcurl4-openssl-dev \
-                            libgflags-dev \
-                            libgtest-dev \
                             libpcre3-dev \
                             libpcre++-dev \
                             libssh-dev \
@@ -65,9 +59,10 @@ function install_dependencies {
                             lcov \
                             cmake > /dev/null
 
-    sudo apt-get install clang-3.8 lldb-3.8 -y
+    sudo apt-get install clang-3.8 -y
     sudo ln -f -s /usr/bin/clang++-3.8 /usr/bin/clang++
     sudo ln -f -s /usr/bin/clang-3.8 /usr/bin/clang
+
 }
 
 function install_confd {
@@ -95,6 +90,7 @@ function install_protobuf {
     make
     make check
     sudo make install
+    sudo ldconfig
 }
 
 function install_grpc {
@@ -107,6 +103,7 @@ function install_grpc {
     make
     sudo make install
 }
+
 ########################## EXECUTION STARTS HERE #############################
 
 install_dependencies
@@ -114,4 +111,3 @@ install_confd
 download_moco
 install_protobuf
 install_grpc
-
