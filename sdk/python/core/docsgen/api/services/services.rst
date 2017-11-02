@@ -10,3 +10,4 @@ YDK Services
    crud_service.rst
    executor_service.rst
    netconf_service.rst
+   gnmi_service.rst
