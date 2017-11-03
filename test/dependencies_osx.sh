@@ -71,6 +71,7 @@ function install_protobuf {
     make check
     sudo make install
     sudo update_dyld_shared_cache
+    cd -
 }
 
 function install_grpc {
@@ -82,6 +83,7 @@ function install_grpc {
     git submodule update --init
     make
     sudo make install
+    cd -
 }
 
 ########################## EXECUTION STARTS HERE #############################
