@@ -19,9 +19,9 @@ Install protobuf
 
 .. code-block:: sh
 
-    wget https://github.com/google/protobuf/releases/download/v3.4.0/protobuf-cpp-3.4.0.zip
-    unzip protobuf-cpp-3.4.0.zip
-    cd protobuf-3.4.0
+    wget https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.zip
+    unzip protobuf-cpp-3.3.0.zip
+    cd protobuf-3.3.0
     ./configure
     make
     make check
@@ -33,7 +33,7 @@ Install gRPC
 
 .. code-block:: sh
 
-    git clone -b v1.7.0 https://github.com/grpc/grpc
+    git clone -b v1.4.5 https://github.com/grpc/grpc
     cd grpc
     git submodule update --init
     sudo ldconfig
@@ -41,7 +41,7 @@ Install gRPC
     sudo make install
     cd -
 
-**Note:** There is an open issue with gRPC on Centos/Fedora which requires an extra step before running any YDK gNMI app. See `this issue <https://github.com/grpc/grpc/issues/10942#issuecomment-312565041>`_ for details.
+**Note:** There is an open issue with gRPC on Centos/Fedora which requires an extra step before running any YDK gNMI app. See `this issue on GRPC GitHub <https://github.com/grpc/grpc/issues/10942#issuecomment-312565041>`_ for details.
 
 .. code-block:: sh
 
@@ -64,6 +64,8 @@ Centos (Fedora-based)
 
    $ sudo yum install epel-release libssh-devel gcc-c++ python-devel
    $ sudo yum install https://devhub.cisco.com/artifactory/rpm-ydk/0.8.0-alpha/libydk-0.8.0-1.x86_64.rpm
+
+Please see `this issue on YDK GitHub <https://github.com/CiscoDevNet/ydk-gen/issues/518>`_ for any potential/usage installation on CentOS.
 
 macOS
 -----
